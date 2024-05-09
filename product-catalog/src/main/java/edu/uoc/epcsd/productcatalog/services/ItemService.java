@@ -35,12 +35,26 @@ public class ItemService {
     }
 
     public Item setOperational(String serialNumber, @RequestBody Boolean operational) {
+        Optional<Item> itemResult = itemRepository.findBySerialNumber(serialNumber);
+        if (itemResult.isPresent()) {
+            Item item = itemResult.get();
+            item.setStatus(operational ? ItemStatus.OPERATIONAL : ItemStatus.NON_OPERATIONAL);
 
-        // TODO: complete this method:
+            itemRepository.saveAndFlush(item);
 
-        return null;
+            if (operational) {
+                productKafkaTemplate.send(
+                        KafkaConstants.PRODUCT_TOPIC + KafkaConstants.SEPARATOR + KafkaConstants.UNIT_AVAILABLE,
+                        ProductMessage.builder().productId(item.getProduct().getId()).build());
 
+            }
+
+            return item;
+        } else {
+            throw new IllegalArgumentException("Could not find the item with serial number: " + serialNumber);
+        }
     }
+
     public Item createItem(Long productId, String serialNumber) {
 
         // bu default a new unit is OPERATIONAL
@@ -56,7 +70,9 @@ public class ItemService {
 
         Item savedItem = itemRepository.save(item);
 
-        productKafkaTemplate.send(KafkaConstants.PRODUCT_TOPIC + KafkaConstants.SEPARATOR + KafkaConstants.UNIT_AVAILABLE, ProductMessage.builder().productId(productId).build());
+        productKafkaTemplate.send(
+                KafkaConstants.PRODUCT_TOPIC + KafkaConstants.SEPARATOR + KafkaConstants.UNIT_AVAILABLE,
+                ProductMessage.builder().productId(productId).build());
 
         return savedItem;
     }
