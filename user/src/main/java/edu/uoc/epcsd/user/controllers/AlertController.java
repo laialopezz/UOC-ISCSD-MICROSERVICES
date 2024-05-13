@@ -5,6 +5,7 @@ import edu.uoc.epcsd.user.entities.Alert;
 import edu.uoc.epcsd.user.services.AlertService;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +14,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.validation.constraints.NotNull;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Log4j2
 @RestController
@@ -65,7 +69,19 @@ public class AlertController {
         }
     }
 
-    // TODO: add the code for the missing system operations here:
-    // 1. query alerts by product and date
-    // 2. query alerts by user and date interval (all the alerts for the specified user where any day in the interval defined in the parameters is between Alert.from and Alert.to)
+    @GetMapping("/toAlert")
+    @ResponseStatus(HttpStatus.OK)
+    public List<Alert> getAlertByProductAndDate(@RequestParam @NotNull Long productId, @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate availableOnDate) {
+        log.trace("getAlertByProductAndDate");
+        Stream<Alert> alerts = alertService.findAll().stream().filter(alert -> alert.getProductId().equals(productId) && alert.getFrom().isEqual(availableOnDate) && alert.getTo().isEqual(availableOnDate));
+        return alerts.collect(Collectors.toList());
+    }
+
+    @GetMapping("/userAlert")
+    @ResponseStatus(HttpStatus.OK)
+    public List<Alert> getAlertByUserAndDate(@RequestParam @NotNull Long userId, @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate availableOnDate) {
+        log.trace("getAlertByUserAndDate");
+        Stream<Alert> alerts = alertService.findAll().stream().filter(alert -> alert.getUser().getId().equals(userId) && availableOnDate.isAfter(alert.getFrom()) && availableOnDate.isBefore(alert.getTo()));
+        return alerts.collect(Collectors.toList());
+    }
 }
