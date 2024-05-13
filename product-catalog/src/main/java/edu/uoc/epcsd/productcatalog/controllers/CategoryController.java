@@ -10,8 +10,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import javax.validation.constraints.NotNull;
 import java.net.URI;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Log4j2
 @RestController
@@ -46,8 +49,27 @@ public class CategoryController {
         return ResponseEntity.created(uri).body(categoryId);
     }
 
-    // TODO: add the code for the missing system operations here:
-    // 1. query categories by name
-    // 2. query categories by description
-    // 3. query categories by parent category (must return all categories under the category specified by the id parameter)
+    @GetMapping("/getByName/{name}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<Category> getCategoriesByName(@PathVariable @NotNull String name) {
+        log.trace("getCategoriesByName");
+        Stream<Category> categories = categoryService.findAll().stream().filter((category -> category.getName().equals(name)));
+        return categories.collect(Collectors.toList());
+    }
+
+    @GetMapping("/getByDescription/{description}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<Category> getCategoriesByDescription(@PathVariable @NotNull String description) {
+        log.trace("getCategoriesByDescription");
+        Stream<Category> categories = categoryService.findAll().stream().filter((category -> category.getDescription().equals(description)));
+        return categories.collect(Collectors.toList());
+    }
+
+    @GetMapping("/getByParentCategory/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<Category> getCategoriesByParentCategory(@PathVariable @NotNull Long id) {
+        log.trace("getCategoriesByParentCategory");
+        Stream<Category> categories = categoryService.findAll().stream().filter((category -> category.getParent().getId().equals(id)));
+        return categories.collect(Collectors.toList());
+    }
 }
