@@ -1,9 +1,13 @@
 package edu.uoc.epcsd.productcatalog.controllers;
 
+
 import edu.uoc.epcsd.productcatalog.controllers.dtos.CreateProductRequest;
 import edu.uoc.epcsd.productcatalog.controllers.dtos.GetProductResponse;
 import edu.uoc.epcsd.productcatalog.entities.Category;
+import edu.uoc.epcsd.productcatalog.entities.Item;
 import edu.uoc.epcsd.productcatalog.entities.Product;
+import edu.uoc.epcsd.productcatalog.services.CategoryService;
+import edu.uoc.epcsd.productcatalog.services.ItemService;
 import edu.uoc.epcsd.productcatalog.services.ProductService;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +19,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import javax.validation.constraints.NotNull;
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -25,6 +30,9 @@ public class ProductController {
 
     @Autowired
     private ProductService productService;
+
+    @Autowired
+    private ItemService itemService;
 
     @GetMapping("/")
     @ResponseStatus(HttpStatus.OK)
@@ -39,8 +47,7 @@ public class ProductController {
     public ResponseEntity<GetProductResponse> getProductById(@PathVariable @NotNull Long productId) {
         log.trace("getProductById");
 
-        return productService.findById(productId)
-                .map(product -> ResponseEntity.ok().body(GetProductResponse.fromDomain(product)))
+        return productService.findById(productId).map(product -> ResponseEntity.ok().body(GetProductResponse.fromDomain(product)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -64,18 +71,20 @@ public class ProductController {
         return ResponseEntity.created(uri).body(productId);
     }
 
-    // TODO: add the code for the missing system operations here:
-    // 1. remove product (use DELETE HTTP verb). Must remove the associated items
-    // Cambiar las unidades del producto al estado NOT_OPERACIONAL
-
-    @GetMapping("/getByName/{name}")
-    @ResponseStatus(HttpStatus.OK)
-    public List<Product> getProductsByName(@PathVariable @NotNull String name) {
-        log.trace("getProductsByName");
-        Stream<Product> categories = productService.findAll().stream()
-                .filter((product -> product.getName().equals(name)));
-        return categories.collect(Collectors.toList());
+    @DeleteMapping("/{id}")
+    public List<Item> setOperational(@PathVariable @NotNull Long id){
+        log.trace("setOperational");
+        List<Item> updatedItems = List.of();
+        Optional<Product> product = productService.findById(id);
+        if(product.isPresent()){
+            product.get().getItemList().forEach(item -> {
+                Item updatedItem = itemService.setOperational(item.getSerialNumber(), false);
+                updatedItems.add(updatedItem);
+            });
+        }
+        return updatedItems;
     }
+
 
     @GetMapping("/getByCategoryId/{id}")
     @ResponseStatus(HttpStatus.OK)
@@ -87,8 +96,7 @@ public class ProductController {
                 categories.add(product);
             } else {
                 product.getCategory().getChildren().forEach(subcategory -> {
-                    if (subcategory.getId().equals((id)))
-                        categories.add(product);
+                    if (subcategory.getId().equals((id))) categories.add(product);
                 });
             }
         });
@@ -96,4 +104,11 @@ public class ProductController {
         return categories;
     }
 
+    @GetMapping("/getByName/{name}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<Product> getProductsByName(@PathVariable @NotNull String name) {
+        log.trace("getProductsByName");
+        Stream<Product> categories = productService.findAll().stream().filter((product -> product.getName().equals(name)));
+        return categories.collect(Collectors.toList());
+    }
 }
